@@ -7,6 +7,7 @@ const bookRoutes = require('./routes/books');
 const app = express();
 
 app.use(bodyParser.json());
+
 app.use('/images', express.static(path.join(__dirname, 'images')));
 
 app.use((req, res, next) => {
@@ -18,5 +19,12 @@ app.use((req, res, next) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/books', bookRoutes);
+
+console.log("Routes définies :");
+app._router.stack.forEach((middleware) => {
+  if (middleware.route) {
+    console.log(middleware.route.path);
+  }
+});
 
 module.exports = app;
