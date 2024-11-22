@@ -8,13 +8,13 @@ module.exports = (req, res, next) => {
             throw new Error('Authorization header is missing');
         }
 
-        const token = req.headers.authorization.split(' ')[1]; // récupération du token
+        const token = req.headers.authorization.split(' ')[1];
         console.log('Token:', token);
 
-        const decodedToken = jwt.verify(token, process.env.JWT_SECRET); // Vérification du token
-        console.log('Decoded Token:', decodedToken); // Log du token décodé
+        const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+        console.log('Decoded Token:', decodedToken);
 
-        req.auth = { userId: decodedToken.userId }; // Ajout de l'ID utilisateur à la requête
+        req.auth = { userId: decodedToken.userId };
         next();
     } catch (error) {
         console.error('Token invalide ou absent:', error);

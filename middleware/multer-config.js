@@ -1,12 +1,12 @@
-const multer = require('multer'); //import de multer
+const multer = require('multer'); 
 
 const storage = multer.diskStorage({
-    destination: (req, file, callback) => { //déstination /images
+    destination: (req, file, callback) => { 
         callback(null, 'images');
     },
-    filename: (req, file, callback) => { //création d'un nom de fichier unique
+    filename: (req, file, callback) => { 
         callback(null, Date.now() + file.originalname);
     }
 });
 
-module.exports = multer({ storage: storage }).single('image'); //création d'un instance multer
+module.exports = multer({ storage: storage }).single('image'); 

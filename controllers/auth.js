@@ -1,8 +1,8 @@
-const bcrypt = require('bcrypt'); //import de bcrypt pour hacher les mots de passes
-const jwt = require('jsonwebtoken'); //import de jwt pour gérer les tokens
-const User = require('../models/User'); //models de donné = utilisateur
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
  
-// Création d'un nouvelle utilisateur
+
 exports.signup = async (req, res) => {
     try {
         const hash = await bcrypt.hash(req.body.password, 10);
@@ -17,7 +17,7 @@ exports.signup = async (req, res) => {
     }
 };
 
-// Connexion d'un utilisateur déja crée
+
 exports.login = async (req, res) => {
     console.log('Tentative de connexion avec l\'email:', req.body.email);
     

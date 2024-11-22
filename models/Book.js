@@ -1,11 +1,11 @@
-const mongoose = require('mongoose'); //import de mongoose
+const mongoose = require('mongoose');
 
-const ratingSchema = mongoose.Schema({ //structure de la notation //*
+const ratingSchema = mongoose.Schema({ 
     userId: { type: String, required: true },
     grade: { type: Number, required: true }
 });
 
-const bookSchema = mongoose.Schema({ //structure d'un livre
+const bookSchema = mongoose.Schema({ 
     userId: { type: mongoose.Types.ObjectId, required: true, ref: 'User' },
     title: { type: String, required: true },
     author: { type: String, required: true },
@@ -16,4 +16,4 @@ const bookSchema = mongoose.Schema({ //structure d'un livre
     averageRating: { type: Number, default: 0 }
 });
 
-module.exports = mongoose.model('Book', bookSchema); //création de Book > exportation
+module.exports = mongoose.model('BookModel', bookSchema);
