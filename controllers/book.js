@@ -4,16 +4,14 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const User = require('../models/User');
 
-
 exports.getAllBooks = async (req, res) => {
     try {
         const books = await BookModel.find();
         res.status(200).json(books);
     } catch (error) {
-        res.status(401).json({ error });
+        res.status(500).json({ error: 'Erreur serveur' });
     }
 };
-
 
 exports.getOneBook = async (req, res) => {
     try {
@@ -23,33 +21,28 @@ exports.getOneBook = async (req, res) => {
         }
         res.status(200).json(book);
     } catch (error) {
-        res.status(401).json({ error: 'Livre non trouvé' });
+        res.status(500).json({ error: 'Erreur serveur' });
     }
 };
-
+ 
 exports.createBook = async (req, res) => {
     console.log(req.body);
 
     let requestData;
     try {
-        requestData = JSON.parse(req.body.book);
+        requestData = typeof req.body.book === 'string' ? JSON.parse(req.body.book) : req.body.book;
     } catch (error) {
         return res.status(400).json({ error: 'Données du livre invalides.' });
     }
 
-  
     if (!requestData.title || !requestData.author || !requestData.year || !requestData.genre) {
         return res.status(400).json({ error: 'Tous les champs sont requis.' });
     }
 
     const newBook = {
-        title: requestData.title,
-        author: requestData.author,
+        ...requestData,
         imageUrl: req.file ? `${req.protocol}://${req.get('host')}/images/${req.file.filename}` : '',
-        year: requestData.year,
-        genre: requestData.genre,
         userId: req.auth.userId,
-        ratings: requestData.ratings || [],
     };
 
     try {
@@ -57,68 +50,61 @@ exports.createBook = async (req, res) => {
         await book.save();
         res.status(201).json(book);
     } catch (error) {
-        res.status(401).json({ error: error.message });
+        console.error('Erreur lors de la création du livre :', error);
+        res.status(500).json({ error: 'Erreur serveur lors de la création du livre.' });
     }
 };
 
 
+
 exports.modifyBook = async (req, res) => {
     try {
-     
         const bookToUpdate = req.file ? {
-            ...req.body, 
-            imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.filename}` 
+            ...req.body,
+            imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.filename}`
         } : { ...req.body };
 
-       
         const book = await BookModel.findOne({ _id: req.params.id });
         if (!book) {
             return res.status(404).json({ error: 'Livre non trouvé' });
         }
 
-      
         if (!book.userId.equals(new mongoose.Types.ObjectId(req.auth.userId))) {
             return res.status(401).json({ message: 'Non autorisé' });
         }
 
-    
         await BookModel.updateOne({ _id: req.params.id }, { ...bookToUpdate, _id: req.params.id });
-
         res.status(200).json({ message: 'Livre modifié !' });
     } catch (error) {
-        console.error('Error while modifying book:', error);
-        res.status(401).json({ error: 'Erreur lors de la modification du livre', message: error.message });
+        console.error('Erreur lors de la modification du livre :', error);
+        res.status(500).json({ error: 'Erreur serveur' });
     }
 };
 
 exports.deleteBook = async (req, res) => {
     try {
         const bookId = req.params.id;
- 
 
         if (!mongoose.Types.ObjectId.isValid(bookId)) {
             return res.status(400).json({ error: 'ID du livre invalide' });
         }
 
-        const book = await BookModel.findOne({ _id: bookId }); 
+        const book = await BookModel.findOne({ _id: bookId });
         if (!book) {
             return res.status(404).json({ error: 'Livre non trouvé' });
         }
 
-       
         if (!book.userId.equals(new mongoose.Types.ObjectId(req.auth.userId))) {
             return res.status(401).json({ message: 'Non autorisé' });
         }
 
-     
         await BookModel.deleteOne({ _id: bookId });
         res.status(200).json({ message: 'Livre supprimé !' });
     } catch (error) {
-        console.error('Error while deleting book:', error);
-        res.status(401).json({ message: 'Erreur lors de la suppression du livre', error: error.message });
+        console.error('Erreur lors de la suppression du livre :', error);
+        res.status(500).json({ error: 'Erreur serveur' });
     }
 };
-
 
 exports.rateBook = async (req, res) => {
     const { userId, rating } = req.body;
@@ -128,7 +114,7 @@ exports.rateBook = async (req, res) => {
     }
 
     try {
-        const book = await Book.findOne({ _id: req.params.id });
+        const book = await BookModel.findOne({ _id: req.params.id });
         if (!book) {
             return res.status(404).json({ error: 'Livre non trouvé' });
         }
@@ -144,7 +130,8 @@ exports.rateBook = async (req, res) => {
         await book.save();
         res.status(200).json(book);
     } catch (error) {
-        res.status(401).json({ error });
+        console.error("Erreur lors de la notation du livre :", error);
+        res.status(500).json({ error: 'Erreur serveur' });
     }
 };
 
@@ -153,14 +140,19 @@ exports.getBestRatedBooks = async (req, res) => {
     try {
         console.log("Lancement de l'agrégation pour récupérer les meilleurs livres...");
 
-        const books = await Book.aggregate([
+        // Vérification si la connexion MongoDB est active
+        if (mongoose.connection.readyState !== 1) {
+            return res.status(500).json({ error: "La connexion à la base de données est défaillante." });
+        }
+
+        const books = await BookModel.aggregate([
             {
                 $unwind: "$ratings"
             },
             {
                 $group: {
                     _id: "$_id",
-                    title: { $first: "$title" }, 
+                    title: { $first: "$title" },
                     averageRating: { $avg: "$ratings.grade" }
                 }
             },
@@ -180,7 +172,8 @@ exports.getBestRatedBooks = async (req, res) => {
 
         res.status(200).json(books);
     } catch (error) {
-        console.error("Erreur dans l'agrégation :", error);
-        res.status(401).json({ error: error.message });
+        console.error("Erreur dans l'agrégation :", error.message);
+        console.error("Détails de l'erreur :", error.stack);
+        res.status(500).json({ error: 'Erreur serveur', details: error.message });
     }
 };
