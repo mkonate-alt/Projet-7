@@ -50,7 +50,7 @@ exports.createBook = async (req, res) => {
         await book.save();
         res.status(201).json(book);
     } catch (error) {
-        console.error('Erreur lors de la création du livre :', error);
+        console.error('Erreur lors de la création du livre :', error); 
         res.status(500).json({ error: 'Erreur serveur lors de la création du livre.' });
     }
 };
@@ -140,7 +140,6 @@ exports.getBestRatedBooks = async (req, res) => {
     try {
         console.log("Lancement de l'agrégation pour récupérer les meilleurs livres...");
 
-        // Vérification si la connexion MongoDB est active
         if (mongoose.connection.readyState !== 1) {
             return res.status(500).json({ error: "La connexion à la base de données est défaillante." });
         }
