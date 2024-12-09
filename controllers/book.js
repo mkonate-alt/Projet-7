@@ -144,24 +144,10 @@ exports.getBestRatedBooks = async (req, res) => {
             return res.status(500).json({ error: "La connexion à la base de données est défaillante." });
         }
 
-        const books = await BookModel.aggregate([
-            {
-                $unwind: "$ratings"
-            },
-            {
-                $group: {
-                    _id: "$_id",
-                    title: { $first: "$title" },
-                    averageRating: { $avg: "$ratings.grade" }
-                }
-            },
-            {
-                $sort: { averageRating: -1 }
-            },
-            {
-                $limit: 3
-            }
-        ]);
+        const books = await BookModel
+           .find()
+           .sort({ averageRating: -1})
+           .limit(3)
 
         console.log("Livres avec les meilleures notes :", books);
 
