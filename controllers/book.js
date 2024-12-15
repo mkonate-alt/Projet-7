@@ -152,7 +152,7 @@ exports.getBestRatedBooks = async (req, res) => {
         console.log("Livres avec les meilleures notes :", books);
 
         if (books.length === 0) {
-            return res.status(404).json({ error: "Aucun livre trouvé avec des notes." });
+            return res.status(200).json([]);
         }
 
         res.status(200).json(books);

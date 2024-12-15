@@ -7,7 +7,6 @@ module.exports = (req, res, next) => {
         if (!req.headers.authorization) {
             throw new Error('Authorization header is missing');
         }
-
         const token = req.headers.authorization.split(' ')[1];
         console.log('Token:', token);
 
