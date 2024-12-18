@@ -9,7 +9,7 @@ const bookSchema = mongoose.Schema({
     userId: { type: mongoose.Types.ObjectId, required: true, ref: 'User' },
     title: { type: String, required: true },
     author: { type: String, required: true },
-    imageUrl: { type: String, required: true },
+    imageUrl: { type: String, required: true, default: 'https://example.com/default-image.jpg' },
     year: { type: Number, required: true },
     genre: { type: String, required: true },
     ratings: [ratingSchema], //*

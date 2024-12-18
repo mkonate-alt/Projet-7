@@ -26,10 +26,8 @@ exports.getOneBook = async (req, res) => {
         res.status(500).json({ error: 'Erreur serveur' });
     }
 };
- 
-exports.createBook = async (req, res) => {
-    console.log(req.body);
 
+exports.createBook = async (req, res) => {
     let requestData;
     try {
         requestData = typeof req.body.book === 'string' ? JSON.parse(req.body.book) : req.body.book;
@@ -42,11 +40,11 @@ exports.createBook = async (req, res) => {
     }
 
     let imageUrl = '';
-    if (req.file && req.file.filename) {
-        const webpFilename = req.file.filename.replace(path.extname(req.file.filename), '.webp');
+    if (req.file) {
+        const webpFilename = path.basename(req.file.path);
         imageUrl = `${req.protocol}://${req.get('host')}/images/${webpFilename}`;
     } else {
-        console.error("Fichier non téléchargé ou nom de fichier manquant.");
+        imageUrl = 'https://example.com/default-image.jpg';
     }
 
     const newBook = {
@@ -60,43 +58,9 @@ exports.createBook = async (req, res) => {
         await book.save();
         res.status(201).json(book);
     } catch (error) {
-        console.error('Erreur lors de la création du livre :', error); 
         res.status(500).json({ error: 'Erreur serveur lors de la création du livre.' });
     }
 };
-
-exports.createBook = async (req, res) => {
-    console.log(req.body);
-
-    let requestData;
-    try {
-        requestData = typeof req.body.book === 'string' ? JSON.parse(req.body.book) : req.body.book;
-    } catch (error) {
-        return res.status(400).json({ error: 'Données du livre invalides.' });
-    }
-
-    if (!requestData.title || !requestData.author || !requestData.year || !requestData.genre) {
-        return res.status(400).json({ error: 'Tous les champs sont requis.' });
-    }
-
-    const imageUrl = req.file ? `${req.protocol}://${req.get('host')}/images/${req.file.filename}` : '';
-
-    const newBook = {
-        ...requestData,
-        imageUrl: imageUrl,
-        userId: req.auth.userId,
-    };
-
-    try {
-        const book = new BookModel(newBook);
-        await book.save();
-        res.status(201).json(book);
-    } catch (error) {
-        console.error('Erreur lors de la création du livre :', error);
-        res.status(500).json({ error: 'Erreur serveur lors de la création du livre.' });
-    }
-};
-
 
 exports.modifyBook = async (req, res) => {
     try {
@@ -108,17 +72,21 @@ exports.modifyBook = async (req, res) => {
 
         if (req.file && book.imageUrl) {
             const oldImage = path.join(__dirname, '..', 'images', path.basename(book.imageUrl));
-            fs.unlink(oldImage, () => {});
+            fs.unlink(oldImage, (err) => {
+                if (err) {
+                    console.error("Erreur lors de la suppression de l'image :", err);
+                }
+            });
         }
 
         const updatedData = {
             ...JSON.parse(req.body.book || '{}'),
-            imageUrl: req.file ? `${req.protocol}://${req.get('host')}/images/${req.file.filename}` : book.imageUrl,
+            imageUrl: req.file ? `${req.protocol}://${req.get('host')}/images/${path.basename(req.file.path)}` : book.imageUrl,
         };
 
         await BookModel.updateOne({ _id: req.params.id }, updatedData);
         res.status(200).json({ message: 'Livre modifié avec succès.' });
-    } catch {
+    } catch (error) {
         res.status(500).json({ error: 'Erreur lors de la modification du livre.' });
     }
 };
@@ -167,16 +135,12 @@ exports.rateBook = async (req, res) => {
         await book.save();
         res.status(200).json(book);
     } catch (error) {
-        console.error("Erreur lors de la notation du livre :", error);
         res.status(500).json({ error: 'Erreur serveur' });
     }
 };
 
-
 exports.getBestRatedBooks = async (req, res) => {
     try {
-        console.log("Lancement de l'agrégation pour récupérer les meilleurs livres...");
-
         if (mongoose.connection.readyState !== 1) {
             return res.status(500).json({ error: "La connexion à la base de données est défaillante." });
         }
@@ -184,9 +148,7 @@ exports.getBestRatedBooks = async (req, res) => {
         const books = await BookModel
            .find()
            .sort({ averageRating: -1})
-           .limit(3)
-
-        console.log("Livres avec les meilleures notes :", books);
+           .limit(3);
 
         if (books.length === 0) {
             return res.status(200).json([]);
@@ -194,8 +156,6 @@ exports.getBestRatedBooks = async (req, res) => {
 
         res.status(200).json(books);
     } catch (error) {
-        console.error("Erreur dans l'agrégation :", error.message);
-        console.error("Détails de l'erreur :", error.stack);
         res.status(500).json({ error: 'Erreur serveur', details: error.message });
     }
 };

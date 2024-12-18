@@ -16,10 +16,7 @@ const convertImageToWebp = (req, res, next) => {
                     return res.status(500).json({ error: 'Erreur lors de la conversion de l\'image.' });
                 }
 
-                console.log('Image convertie en WebP :', outputPath);
-
                 req.file.path = outputPath;
-
                 next();
             });
     } else {
@@ -30,4 +27,3 @@ const convertImageToWebp = (req, res, next) => {
 const imageUpload = multer({ storage: storage }).single('image');
 
 module.exports = { imageUpload, convertImageToWebp };
-
