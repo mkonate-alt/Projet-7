@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const User = require('../models/User');
+const fs = require('fs');
+const path = require('path');
 
 exports.getAllBooks = async (req, res) => {
     try {
@@ -39,9 +41,17 @@ exports.createBook = async (req, res) => {
         return res.status(400).json({ error: 'Tous les champs sont requis.' });
     }
 
+    let imageUrl = '';
+    if (req.file && req.file.filename) {
+        const webpFilename = req.file.filename.replace(path.extname(req.file.filename), '.webp');
+        imageUrl = `${req.protocol}://${req.get('host')}/images/${webpFilename}`;
+    } else {
+        console.error("Fichier non téléchargé ou nom de fichier manquant.");
+    }
+
     const newBook = {
         ...requestData,
-        imageUrl: req.file ? `${req.protocol}://${req.get('host')}/images/${req.file.filename}` : '',
+        imageUrl: imageUrl,
         userId: req.auth.userId,
     };
 
@@ -55,54 +65,81 @@ exports.createBook = async (req, res) => {
     }
 };
 
+exports.createBook = async (req, res) => {
+    console.log(req.body);
+
+    let requestData;
+    try {
+        requestData = typeof req.body.book === 'string' ? JSON.parse(req.body.book) : req.body.book;
+    } catch (error) {
+        return res.status(400).json({ error: 'Données du livre invalides.' });
+    }
+
+    if (!requestData.title || !requestData.author || !requestData.year || !requestData.genre) {
+        return res.status(400).json({ error: 'Tous les champs sont requis.' });
+    }
+
+    const imageUrl = req.file ? `${req.protocol}://${req.get('host')}/images/${req.file.filename}` : '';
+
+    const newBook = {
+        ...requestData,
+        imageUrl: imageUrl,
+        userId: req.auth.userId,
+    };
+
+    try {
+        const book = new BookModel(newBook);
+        await book.save();
+        res.status(201).json(book);
+    } catch (error) {
+        console.error('Erreur lors de la création du livre :', error);
+        res.status(500).json({ error: 'Erreur serveur lors de la création du livre.' });
+    }
+};
 
 
 exports.modifyBook = async (req, res) => {
     try {
-        const bookToUpdate = req.file ? {
-            ...req.body,
-            imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.filename}`
-        } : { ...req.body };
-
-        const book = await BookModel.findOne({ _id: req.params.id });
-        if (!book) {
-            return res.status(404).json({ error: 'Livre non trouvé' });
+        const book = await BookModel.findById(req.params.id);
+        if (!book) return res.status(404).json({ error: 'Livre non trouvé.' });
+        if (book.userId.toString() !== req.auth.userId) {
+            return res.status(401).json({ error: 'Non autorisé.' });
         }
 
-        if (!book.userId.equals(new mongoose.Types.ObjectId(req.auth.userId))) {
-            return res.status(401).json({ message: 'Non autorisé' });
+        if (req.file && book.imageUrl) {
+            const oldImage = path.join(__dirname, '..', 'images', path.basename(book.imageUrl));
+            fs.unlink(oldImage, () => {});
         }
 
-        await BookModel.updateOne({ _id: req.params.id }, { ...bookToUpdate, _id: req.params.id });
-        res.status(200).json({ message: 'Livre modifié !' });
-    } catch (error) {
-        console.error('Erreur lors de la modification du livre :', error);
-        res.status(500).json({ error: 'Erreur serveur' });
+        const updatedData = {
+            ...JSON.parse(req.body.book || '{}'),
+            imageUrl: req.file ? `${req.protocol}://${req.get('host')}/images/${req.file.filename}` : book.imageUrl,
+        };
+
+        await BookModel.updateOne({ _id: req.params.id }, updatedData);
+        res.status(200).json({ message: 'Livre modifié avec succès.' });
+    } catch {
+        res.status(500).json({ error: 'Erreur lors de la modification du livre.' });
     }
 };
 
 exports.deleteBook = async (req, res) => {
     try {
-        const bookId = req.params.id;
-
-        if (!mongoose.Types.ObjectId.isValid(bookId)) {
-            return res.status(400).json({ error: 'ID du livre invalide' });
+        const book = await BookModel.findById(req.params.id);
+        if (!book) return res.status(404).json({ error: 'Livre non trouvé.' });
+        if (book.userId.toString() !== req.auth.userId) {
+            return res.status(401).json({ error: 'Non autorisé.' });
         }
 
-        const book = await BookModel.findOne({ _id: bookId });
-        if (!book) {
-            return res.status(404).json({ error: 'Livre non trouvé' });
+        if (book.imageUrl) {
+            const imagePath = path.join(__dirname, '..', 'images', path.basename(book.imageUrl));
+            fs.unlink(imagePath, () => {});
         }
 
-        if (!book.userId.equals(new mongoose.Types.ObjectId(req.auth.userId))) {
-            return res.status(401).json({ message: 'Non autorisé' });
-        }
-
-        await BookModel.deleteOne({ _id: bookId });
-        res.status(200).json({ message: 'Livre supprimé !' });
-    } catch (error) {
-        console.error('Erreur lors de la suppression du livre :', error);
-        res.status(500).json({ error: 'Erreur serveur' });
+        await BookModel.deleteOne({ _id: req.params.id });
+        res.status(200).json({ message: 'Livre supprimé avec succès.' });
+    } catch {
+        res.status(500).json({ error: 'Erreur lors de la suppression du livre.' });
     }
 };
 
